@@ -1,0 +1,43 @@
+# Python / Jupyter
+# no pycache
+__pycache__/
+*.py[cod]
+*.so
+*pt
+*pkl
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+pvenv/
+checkpoints/
+data/
+graph-data/
+gtpyg/
+model_save/
+models/
+temp_storage/
+
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Logs & outputs
+*.log
+*.out
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.csv
+
+
+# System
+.DS_Store
+
+EOF
