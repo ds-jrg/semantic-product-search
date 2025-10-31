@@ -1,0 +1,9 @@
+pandas
+networkx
+torch
+scikit-learn
+torch_geometric
+sentence_transformers
+rank-bm25
+datasets
+accelerate
