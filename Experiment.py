@@ -1,6 +1,6 @@
 # For easily testing different models with different data and subsets
 # Prompt: 
-# python general_setup.py graphsage --dataset 0 --edges gc_dataset_2 --task_version 1 --test_subset 0  --batch_size 32
+# python Experiment.py graphsage --dataset 0 --edges gc_dataset_2 --task_version 1 --test_subset 0  --batch_size 32
 import os
 import math
 import pandas as pd
@@ -40,7 +40,7 @@ sentence_transformer_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse", batch_size=32):
     #test_gnn(module, dataset, edges, task_version, test_subset, loss_fct, batch_size)
-    # dataset: # 0=esci, 1=wands
+    # dataset: # esci, wands
     # task version: 1= task 1; 2=task 2
     
     #=========
@@ -66,7 +66,7 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     global product_id_to_node_id
     global label_dict
     global df_products
-    if dataset == 0: # if amazon
+    if dataset == "esci": # if amazon
         df_examples = pd.read_parquet('data/esci-data/shopping_queries_dataset_examples.parquet')
         df_products = pd.read_parquet('data/esci-data/shopping_queries_dataset_products.parquet')
         
@@ -124,7 +124,7 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     df_products = df_products[df_products["product_id"].isin(df_examples["product_id"])]
     
 
-    if dataset == 0:
+    if dataset == "esci":
         label = 'esci_label'
         df_products = clean_prod_desc(df_products)
         #df_products = clean_color(df_products)
@@ -151,7 +151,7 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     eval_parts = int(0.1*total_len)
     test_parts = total_len - eval_parts - train_parts
     
-    if task_version == 1 and dataset == 0: # to predict unseen questions
+    if task_version == 1 and dataset == "esci": # to predict unseen questions
         train_data = df_examples[df_examples['split']== 'train'] 
         train_data, eval_data = train_data[:int(len(train_data)*.8)],train_data[int(len(train_data)*0.8+1):]
         test_data = df_examples[df_examples['split']== 'test'] 
@@ -174,9 +174,9 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     test_data = test_data[['query','query_id']].drop_duplicates()
         
     # Use the custom data/collate  
-    train_dataset = custom_data(train_data, sentence_transformer_model)
-    eval_dataset = custom_data(eval_data, sentence_transformer_model)  
-    test_dataset = custom_data(test_data, sentence_transformer_model)  
+    train_dataset = CustomData(train_data, sentence_transformer_model)
+    eval_dataset = CustomData(eval_data, sentence_transformer_model)
+    test_dataset = CustomData(test_data, sentence_transformer_model)
     
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)    
     eval_dataloader = DataLoader(eval_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
@@ -192,8 +192,8 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     optimizer = torch.optim.Adam(model_gnn.parameters(),lr=0.001)
     
     if os.path.exists(f"loss_fncs/{loss_fct}.py"):
-        mod = importlib.import_module(str(f'loss_fncs.{loss_fct}'), package=None)
-        loss_func = getattr(mod, "custom_loss_func")
+        for_loss_func = importlib.import_module(str(f'loss_fncs.{loss_fct}'), package=None)
+        loss_func = getattr(for_loss_func, "custom_loss_func")
 
     #=======
     # Load or Create the custom graph
@@ -202,17 +202,17 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     gnn_type = model_gnn.get_type()
     graph_path = f"temp_storage/saved_graphs/PG-{edges}-{dataset}-{test_subset}-{gnn_type}"
     
-    #if os.path.exists(os.path.join(graph_path, "graph.pkl")):
-     #   print("Loading graph from disk...")
-      #  kwargs = load_graph_data(graph_path)
-    #else:
-    if True:
+    if os.path.exists(os.path.join(graph_path, "graph.pkl")):
+        print("Loading graph from disk...")
+        kwargs = load_graph_data(graph_path)
+    else:
+    #if True:
         print("Creating graph from scratch...")
         if os.path.exists(f'graph_creation/{edges}.py'):
             for_graph_creation = importlib.import_module(f'graph_creation.{edges}', package=None)
-            for_graph_creation = for_graph_creation.graph_creator(df_products, gnn_type, sentence_transformer_model)
-            kwargs = for_graph_creation.create_custom_graph()
-            #kwargs = G, embeddings, edge_index
+            for_graph_creation = for_graph_creation.GraphCreator(df_products, gnn_type, sentence_transformer_model)
+            kwargs = for_graph_creation.custom_create_graph()
+            #kwargs = G, embeddings, edge_index, (edge_type/edge_attr)
             save_graph_data(kwargs, graph_path)  
     
     G = kwargs[0]
@@ -237,7 +237,7 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
 #========
 # All helper functions
 #========
-class custom_data(Dataset):
+class CustomData(Dataset):
     def __init__(self, dataset, sentence_transformer_model, batch_size=64):
         self.pairs = []
         
@@ -523,11 +523,10 @@ if __name__ == "__main__":
     # Set arguments
     #========
     #main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse", batch_size=32):
-    # dataset: # 0=esci, 1=wands
     # task version: 1= task 1; 2=task 2
     parser = argparse.ArgumentParser()
     parser.add_argument("model", type=str, default="graphsage", help='Choose the GNN to use')
-    parser.add_argument("--dataset", type=int, default=0, help='Choose the dataset to use: 0 = ESCI; 1 = WANDS')
+    parser.add_argument("--dataset", type=str, default="wands", help='Choose the dataset to use: esci or wands')
     parser.add_argument("--edges", type=str, default="old_2", help="Choose the edge creation for the Product Graph")
     parser.add_argument("--task_version", type=int, default=2, help='Choose the version of testing: 1 = to predict unseen questions; 2 = rank relavants to known questions .')
     parser.add_argument("--test_subset", type=int, default=0, help="Choose the subset, and it's size. {0,...,8}")

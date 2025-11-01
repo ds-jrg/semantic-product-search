@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 
-class graph_creator:
+class GraphCreator:
     def __init__(self, df_products, gnn_type, sentence_transformer_model):
         self._df_products = df_products
         self._gnn_type = gnn_type
@@ -20,7 +20,7 @@ class graph_creator:
 
         self._add_edges = 2
 
-    def create_custom_graph(self):
+    def custom_create_graph(self):
         if 'product_title' in self._df_products.columns:
             product_infos = ['product_title', 'product_description', 'product_bullet_point'] 
             attributes = ['product_brand', 'product_color']

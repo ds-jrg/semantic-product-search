@@ -1,8 +1,8 @@
-from test_starter import start_one_test
+from ExperimentStarter import start_one_test
 
 
 modules = ['transformerconv.py']
-dataset = 0 # 0=esci, 1=wands
+dataset = "wands" # 0=esci, 1=wands
 dataset_size = 10000 # dataset sizes in 10000, 50000, 100000
 edges = "old_2_list" # specify graph creation
 task_version = 2 # 1= task 1; 2=task 2

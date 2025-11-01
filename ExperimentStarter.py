@@ -2,7 +2,7 @@
 import os
 import json
 import numpy as np
-from general_setup import main as test_gnn
+from Experiment import main as test_gnn
 #from general_setup_triplet import main as test_gnn
 
 # To simply get all models in folder scripts contained
@@ -12,13 +12,13 @@ print(modules)
 
 
 # Test every module on the same task, same dataset. Use 3 different subsets, average them
-dataset = 0 # 0=esci, 1=wands
+dataset = "wands" # esci, wands
 dataset_size = 10000 # dataset sizes in 10000, 50000, 100000
 edges = "old_2_list" # specify graph creation
 task_version = 2 # 1= task 1; 2=task 2
 batch_size = 32
 #path_to_save = ""
-path_to_save = f"dataset-{dataset}-{dataset_size}_task"
+path_to_save = f"dataset-{dataset}-{dataset_size}_task{task_version}"
 
 
 
