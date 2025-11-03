@@ -1,6 +1,6 @@
 # Creates a graph depending on gnn_type with edge types, without, with edge attributes. 
 # With _add_edges many edges per node outgoing per attribute
-# Edges between products with most similar product title of shared attribute
+# Edges between products of shared attribute, with the highest similarity in the product title
 
 import torch
 from torch import nn
@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 import networkx as nx
 import pandas as pd
 import numpy as np
-
+import Levenshtein
 
 class GraphCreator:
     def __init__(self, df_products, gnn_type, sentence_transformer_model):
@@ -54,16 +54,19 @@ class GraphCreator:
         # Create Edges
         # ======
         for vat0 in self._df_products['enc_att0'].unique():
-            products_in_vat0 = self._df_products[self._df_products['enc_att0'] == vat0]['node_id'].tolist()
-            #print(products_in_vat0)
+            products_in_vat0 = self._df_products[self._df_products['enc_att0'] == vat0]['node_id',product_infos[0]].tolist()
+            print(products_in_vat0)
             for i in range(len(products_in_vat0)):
-                # connect between 1 to max _add_edges many nodes
-                products_for_connection = random.sample(products_in_vat0, min(len(products_in_vat0),self._add_edges))
-                #print(products_for_connection)
+                # find most similar products based on title
+                product_similarities = [Levenshtein.distance(products_in_vat0[x][1],products_in_vat0[i][1]) for x in products_in_vat0 if x[0] != products_in_vat0[i]]
+                print(product_similarities)
+                # find indices of the _add_edges most similar products
+                products_for_connection = np.argsort(product_similarities)[:self._add_edges]
+                print(products_for_connection)
                 for j in products_for_connection:
                     if i == j: continue
                     G.add_edge(i,j, type='same_attribute0')
-                
+            raise Exception("stop")
 
         for vat1 in self._df_products['enc_att1'].unique():
             products_in_vat1 = self._df_products[self._df_products['enc_att1'] == vat1]['node_id'].tolist()

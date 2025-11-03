@@ -1,6 +1,6 @@
 # For easily testing different models with different data and subsets
 # Prompt: 
-# python Experiment.py graphsage --dataset 0 --edges gc_dataset_2 --task_version 1 --test_subset 0  --batch_size 32
+# python Experiment.py graphsage --dataset esci --edges gc_dataset_2 --task_version 1 --test_subset 0  --batch_size 32
 import os
 import math
 import pandas as pd
