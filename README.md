@@ -7,7 +7,8 @@ In this work, we propose a graph-based semantic product
 retrieval framework for known queries that combines sentence-
 transformer embeddings with graph neural networks (GNNs) to
 refine product representations for ranking.
-See Figure: ![img.png](img.png)
+See Figure: <img width="929" height="338" alt="Screenshot from 2025-11-19 15-51-41" src="https://github.com/user-attachments/assets/c8496a0b-e7c3-4b79-943d-5be39d5de1fd" />
+
 This repository provides a easy to use and scalable framework for exploring different Graph Neural Network (GNN) architectures for this problem.
 
 
