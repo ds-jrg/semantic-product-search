@@ -1,23 +1,33 @@
 from ExperimentStarter import start_one_test
 
+""" This file allows to create multiple experiments and start them one after another
 
-modules = ['transformerconv.py']
-dataset = "wands" # 0=esci, 1=wands
-dataset_size = 10000 # dataset sizes in 10000, 50000, 100000
-edges = "old_2_list" # specify graph creation
-task_version = 2 # 1= task 1; 2=task 2
+start_one_test(modules, dataset, size, edges, path_to_save, batch_size, add_edges, loss_fct)
+
+Parameters:
+    modules: the GNN modules to use for testing: ['graphsage','rgcn']
+    dataset: specicifies which dataset to use: esci/wands
+    size: specifies dataset size to test: 10000, 50000, 100000, 200000
+    edges: which edge creation rule to use (add_edges default=4): gc_random
+    path_to_save: where to store the results
+    (Opt) batch_size: specify batch size (default = 64)
+    (Opt) add_edges: how many edges minimum per node (default = 4)
+    (Opt) loss_fct: can specify a different loss function (default = "cosine_mse")
+"""
+
+modules = ['transformerconv.py','gtpyg_gtconv.py']
+dataset = "wands"
+size = 10000
+edges = "gc_random"
 batch_size = 32
-#path_to_save = ""
-path_to_save = f"dataset-{dataset}-{dataset_size}_task"
+add_edges = 2
+loss_fct = "cosine_mse"
+path_to_save = f"outputs/modules-{dataset}-{size}"
 
-"""
-# Test the different models on different dataset sizes
-start_one_test(dataset, dataset_size, edges, task_version, batch_size, path_to_save)
-start_one_test(dataset, 50000, edges, task_version, batch_size, path_to_save)
-start_one_test(dataset, 100000, edges, task_version, batch_size, path_to_save)
-start_one_test(1, dataset_size, edges, task_version, batch_size, path_to_save)
-start_one_test(1, 50000, edges, task_version, batch_size, path_to_save)
-start_one_test(1, 100000, edges, task_version, batch_size, path_to_save)
-"""
 
-# Test different EDGE Types
+# Example: Test the different models on different edge sizes
+start_one_test(modules, dataset, size, edges, path_to_save, batch_size, 2, loss_fct)
+start_one_test(modules, dataset, size, edges, path_to_save, batch_size, 4, loss_fct)
+start_one_test(modules, dataset, size, edges, path_to_save, batch_size, 8, loss_fct)
+
+

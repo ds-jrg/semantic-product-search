@@ -13,12 +13,12 @@ import numpy as np
 
 
 class GraphCreator:
-    def __init__(self, df_products, gnn_type, sentence_transformer_model):
+    def __init__(self, df_products, gnn_type, sentence_transformer_model, add_edges=4):
         self._df_products = df_products
         self._gnn_type = gnn_type
         self._sentence_transformer_model = sentence_transformer_model
 
-        self._add_edges = 2
+        self._add_edges = add_edges
 
     def custom_create_graph(self):
         if 'product_title' in self._df_products.columns:

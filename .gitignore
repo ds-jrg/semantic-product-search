@@ -17,6 +17,10 @@ gtpyg/
 model_save/
 models/
 temp_storage/
+different explored approaches/
+baselines/
+
+/ExperimentBaselines.py
 
 *.pyc
 *.pyo

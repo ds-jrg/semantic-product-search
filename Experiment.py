@@ -1,6 +1,6 @@
 # For easily testing different models with different data and subsets
 # Prompt: 
-# python Experiment.py graphsage --dataset esci --edges gc_dataset_2 --task_version 1 --test_subset 0  --batch_size 32
+# python Experiment.py graphsage wands 10000 0 --edges gc_random --batch_size 32 --add_edges 16 --loss_fct cosine_mse
 import os
 import math
 import pandas as pd
@@ -38,13 +38,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 sentence_transformer_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
-def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse", batch_size=32):
-    #test_gnn(module, dataset, edges, task_version, test_subset, loss_fct, batch_size)
-    # dataset: # esci, wands
-    # task version: 1= task 1; 2=task 2
-    
+def main(model, dataset, size, test_subset, edges, batch_size=64, add_edges=4, loss_fct="cosine_mse"):
     #=========
-    # Load in the model and it's charcteristics
+    # Load in the model, and it's characteristics
     #=========
     global module
     # Import all characteristics of the model -> save in module
@@ -53,10 +49,8 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     else:
         module = importlib.import_module(str('diff_scripts.'+model), package=None)
     # Check if module has everything imported
-    required = ["custom_gnn"]
-    for name in required:
-        if not hasattr(module, name):
-            raise RuntimeError(f"Model module {module} must define '{name}'")
+    if not hasattr(module, "custom_gnn"):
+        raise RuntimeError(f"Model module {module} must define 'custom_gnn'")
 
 
     #==========
@@ -111,10 +105,14 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
         case 8:
             desired_length = 100000
             rkey = 31
-
+    """
+    # otherwise use:
+    desired_length = int(size)
+    rkey = test_subset
+    """
     rng = np.random.default_rng(rkey)
         
-    qids = df_examples['query_id'].unique() # all querys
+    qids = df_examples['query_id'].unique() # all queries
     num_queries = int(desired_length/(len(df_examples)/ len(qids))) # desired length/ avg depth
     # for calculating ca. desired length many queries
     qids_to_use = rng.choice(qids, size=num_queries, replace=False)
@@ -123,19 +121,20 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     df_examples = df_examples[df_examples["query_id"].isin(qids_to_use)]
     df_products = df_products[df_products["product_id"].isin(df_examples["product_id"])]
 
-    # Sorting by query-id, so that train, val, test splits are useful
-    df_examples = df_examples.sort_values(by='query_id')
-
     if dataset == "esci":
         label = 'esci_label'
         df_products = clean_prod_desc(df_products)
-        #df_products = clean_color(df_products)
         df_products['product_bullet_point'] = clean_emojis_symbols(df_products['product_bullet_point'])
         df_products['product_title'] = clean_emojis_symbols(df_products['product_title'])
     else:
-        label = 'label' 
+        label = 'label'
+        df_products['product_name'] = clean_emojis_symbols(df_products['product_name'])
+        df_products['product_features'] = clean_emojis_symbols(df_products['product_features'])
         df_examples = pd.merge(df_examples, query_df, how='left', on='query_id')
         df_examples = df_examples.sort_values(by='query_id')
+
+    # Sorting by query-id, so that train, val, test splits are useful
+    df_examples = df_examples.sort_values(by='query_id')
 
     # Assign a unique sequential node ID to each product (for easier accessing) from 0 to len(df_products)
     df_products = df_products.reset_index(drop=True).copy()
@@ -146,45 +145,42 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
 
     # Create a lookup table for product relevancy
     label_map = {"E": 1, "S": 0.2, "C":0.01, "I": 0, "Exact":1, "Partial":0.2, "Irrelevant":0}
-    #label_map = {"E": 0, "S": 0.9, "C":0.99, "I": 1, "Exact":0, "Partial":0.8, "Irrelevant":0} this doesn't work as well
     label_dict = create_label_dict(df_examples, label, label_map)
 
+    #======
+    # Create the Train, Val, Test data
+    #======
+    dataset = CustomData(df_examples, sentence_transformer_model)
+    dataLoader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
+
+    train_dataloader, val_dataloader, test_dataloader = random_split(dataLoader, [0.7, 0.1, 0.2])
+    """
     total_len = len(df_examples)
     train_parts = int(0.7*total_len)
-    eval_parts = int(0.1*total_len)
-    test_parts = total_len - eval_parts - train_parts
-    
-    if task_version == 1 and dataset == "esci": # to predict unseen questions
-        train_data = df_examples[df_examples['split']== 'train'] 
-        train_data, eval_data = train_data[:int(len(train_data)*.8)],train_data[int(len(train_data)*0.8+1):]
-        test_data = df_examples[df_examples['split']== 'test'] 
-    elif task_version == 1:
-        train_data = df_examples.iloc[:train_parts,:]
-        eval_data = df_examples.iloc[train_parts:(train_parts+eval_parts),:]
-        test_data = df_examples.iloc[(train_parts+eval_parts):,:]
-    else:
-        splits = random_split(
-            df_examples,
-            [train_parts, eval_parts, test_parts],
-            generator=torch.Generator().manual_seed(42)
-        )
-        train_idx, val_idx, test_idx = [list(s.indices) for s in splits]
-        
-        train_data = df_examples.iloc[train_idx]
-        eval_data  = df_examples.iloc[val_idx]
-        test_data  = df_examples.iloc[test_idx]
+    val_parts = int(0.1*total_len)
+    test_parts = total_len - val_parts - train_parts
+
+    splits = random_split(
+        df_examples,
+        [train_parts, val_parts, test_parts],
+        generator=torch.Generator().manual_seed(42)
+    )
+    train_idx, val_idx, test_idx = [list(s.indices) for s in splits]
+
+    train_data = df_examples.iloc[train_idx]
+    val_data  = df_examples.iloc[val_idx]
+    test_data  = df_examples.iloc[test_idx]
     
     test_data = test_data[['query','query_id']].drop_duplicates()
-        
-    # Use the custom data/collate  
+
     train_dataset = CustomData(train_data, sentence_transformer_model)
-    eval_dataset = CustomData(eval_data, sentence_transformer_model)
+    val_dataset = CustomData(val_data, sentence_transformer_model)
     test_dataset = CustomData(test_data, sentence_transformer_model)
     
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)    
-    eval_dataloader = DataLoader(eval_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
-
+    """
     #========
     # Load in the model and other requirements
     #========
@@ -203,17 +199,16 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     #=======
     global kwargs
     gnn_type = model_gnn.get_type()
-    graph_path = f"temp_storage/saved_graphs/PG-{edges}-{dataset}-{test_subset}-{gnn_type}"
+    graph_path = f"temp_storage/saved_graphs/PG-{edges}-{add_edges}-{dataset}-{test_subset}-{gnn_type}"
     
     if os.path.exists(os.path.join(graph_path, "graph.pkl")):
         print("Loading graph from disk...")
         kwargs = load_graph_data(graph_path)
     else:
-    #if True:
         print("Creating graph from scratch...")
         if os.path.exists(f'graph_creation/{edges}.py'):
             for_graph_creation = importlib.import_module(f'graph_creation.{edges}', package=None)
-            for_graph_creation = for_graph_creation.GraphCreator(df_products, gnn_type, sentence_transformer_model)
+            for_graph_creation = for_graph_creation.GraphCreator(df_products, gnn_type, sentence_transformer_model, add_edges)
             kwargs = for_graph_creation.custom_create_graph()
             #kwargs = G, embeddings, edge_index, (edge_type/edge_attr)
             save_graph_data(kwargs, graph_path)  
@@ -221,18 +216,16 @@ def main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse"
     G = kwargs[0]
     print(f"Number of nodes: {G.number_of_nodes()}")
     print(f"Number of edges: {G.number_of_edges()}")
-
-
-
     
     #========
     # Train and evaluate the model
     #========
-    result = perfrom_Training_and_Evaluation(train_dataloader, eval_dataloader, test_dataloader, model)
+    result = perfrom_Training_and_Evaluation(train_dataloader, val_dataloader, test_dataloader, model)
     
     print(model,result)
+    # store result additionally in results.txt
     with open(f'outputs/results.txt', 'a') as f:
-        f.write(f"{model,dataset,edges,task_version,test_subset,batch_size}={result}")
+        f.write(f"ML{model, dataset, size, test_subset, edges, batch_size, add_edges, loss_fct}={result}\n\n")
     return result
     
 
@@ -276,20 +269,6 @@ def custom_collate(batch):
 # Creating a lookup table for query id, product_id to relevance
 def create_label_dict(df, label, label_map):
     return {(row['query_id'], row['product_id']): label_map[row[label]] for _, row in df.iterrows()}
-
-
-# For cleaning product details in amazon
-def clean_color(df_products):
-    colors = ["WHITE", "YELLOW", "BLUE", "RED", "GREEN", "BLACK", "BROWN", "AZURE", "IVORY", "TEAL", "SILVER", "PURPLE", "NAVY BLUE", "PEA GREEN", "GRAY", "ORANGE", "MAROON", "CHARCOAL", "AQUAMARINE", "CORAL", "FUCHSIA", "WHEAT", "LIME", "CRIMSON", "KHAKI", "HOT PINK", "MAGENTA", "OLDEN", "PLUM", "OLIVE", "CYAN"]
-    pattern = '|'.join(colors)
-    
-    def process_colors(text):
-        if text is None: return '[]'
-        matches = re.findall(pattern, text.upper())
-        return str(matches) if matches else '[]'
-    
-    df_products['product_color'] = df_products['product_color'].apply(process_colors)
-    return df_products
 
 def clean_prod_desc(df_products):
     def process_info(text):
@@ -346,8 +325,8 @@ def save_graph_data(kwargs, path="graph_data"):
 def train(train_dataloader):
     model_gnn.train()                             
     total_loss = 0
-    for querys, qids, product_ids in train_dataloader:
-        anchor_projs = querys.to(device)
+    for queries, qids, product_ids in train_dataloader:
+        anchor_projs = queries.to(device)
         qids = qids.to(device)
         
         node_emb =  model_gnn.get_node_emb(*kwargs)                
@@ -445,7 +424,7 @@ def evaluate(dataloader):
                     
                 relevance = np.array(relevance)
              
-                # Precision at k= relevant geschnit retrieved / retrieved
+                # Precision at k= relevant cut retrieved / retrieved
                 def p_for_k(x): 
                     return sum(relevance[:x+1]) / (x+1)
     
@@ -495,7 +474,7 @@ def evaluate(dataloader):
 
 def perfrom_Training_and_Evaluation(train_dataloader, eval_dataloader, test_dataloader, model):
     best_ndcg = -float("inf")   # track best validation loss
-    patience = 5                 # how many epochs to wait                                          
+    patience = 30                 # how many epochs to wait
     counter = 0                     # how many epochs since last improvement
     MODEL_SAVE_PATH = f"temp_storage/saved_gnns/{model}-parameters"
     
@@ -525,16 +504,15 @@ if __name__ == "__main__":
     #========
     # Set arguments
     #========
-    #main(model, dataset, edges, task_version, test_subset, loss_fct="cosine_mse", batch_size=32):
-    # task version: 1= task 1; 2=task 2
     parser = argparse.ArgumentParser()
-    parser.add_argument("model", type=str, default="graphsage", help='Choose the GNN to use')
-    parser.add_argument("--dataset", type=str, default="wands", help='Choose the dataset to use: esci or wands')
-    parser.add_argument("--edges", type=str, default="old_2", help="Choose the edge creation for the Product Graph")
-    parser.add_argument("--task_version", type=int, default=2, help='Choose the version of testing: 1 = to predict unseen questions; 2 = rank relavants to known questions .')
-    parser.add_argument("--test_subset", type=int, default=0, help="Choose the subset, and it's size. {0,...,8}")
-    parser.add_argument("--loss_fct", type=str, default="cosine_mse", help="Choose the Loss Function for the approach")
+    parser.add_argument("model", type=str, default="graphsage", help='Choose the script to use')
+    parser.add_argument("dataset", type=str, default="wands", help='Choose the dataset to use: "esci" or "wands"')
+    parser.add_argument("size", type=int, default=10000, help="Amount of judgments")
+    parser.add_argument("test_subset", type=int, default=0, help="Choose the subset, and it's size. {0,1,...}")
+    parser.add_argument("--edges", type=str, default="gc_random", help="Choose the edge creation for the Product Graph")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
+    parser.add_argument("--add_edges", type=int, default=4, help="Choose the minimum of edges per node")
+    parser.add_argument("--loss_fct", type=str, default="cosine_mse", help="Choose the Loss Function for the approach")
     args = parser.parse_args()
 
-    main(args.model, args.dataset, args.edges, args.task_version, args.test_subset, args.loss_fct ,args.batch_size)
+    main(args.model, args.dataset, args.size, args.test_subset, args.edges, args.batch_size, args.add_edges, args.loss_fct)
