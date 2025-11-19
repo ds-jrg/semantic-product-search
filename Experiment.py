@@ -105,11 +105,7 @@ def main(model, dataset, size, test_subset, edges, batch_size=64, add_edges=4, l
         case 8:
             desired_length = 100000
             rkey = 31
-    """
-    # otherwise use:
-    desired_length = int(size)
-    rkey = test_subset
-    """
+
     rng = np.random.default_rng(rkey)
         
     qids = df_examples['query_id'].unique() # all queries
@@ -150,11 +146,7 @@ def main(model, dataset, size, test_subset, edges, batch_size=64, add_edges=4, l
     #======
     # Create the Train, Val, Test data
     #======
-    dataset = CustomData(df_examples, sentence_transformer_model)
-    dataLoader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
 
-    train_dataloader, val_dataloader, test_dataloader = random_split(dataLoader, [0.7, 0.1, 0.2])
-    """
     total_len = len(df_examples)
     train_parts = int(0.7*total_len)
     val_parts = int(0.1*total_len)
@@ -180,7 +172,7 @@ def main(model, dataset, size, test_subset, edges, batch_size=64, add_edges=4, l
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)    
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
-    """
+
     #========
     # Load in the model and other requirements
     #========
