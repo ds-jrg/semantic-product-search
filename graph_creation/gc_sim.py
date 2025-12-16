@@ -96,7 +96,7 @@ class GraphCreator:
             edge_index_list = []
             edge_type_list = []
 
-            edge_type_to_id = {'enc_att0': 0, 'enc_att1': 1}
+            edge_type_to_id = {'same_attribute0':0, 'same_attribute1':1}
 
             node_idx_map = {node: i for i, node in enumerate(G.nodes())}
 
