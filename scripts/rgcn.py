@@ -33,7 +33,7 @@ class custom_gnn(nn.Module):
             in_channels=384,
             hidden_channels=384,      # <= 384     #128->0.45
             out_channels=384,
-            num_relations=1
+            num_relations=2
         ).to(self.device)
 
     def get_type(self):
