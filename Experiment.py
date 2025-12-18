@@ -39,6 +39,12 @@ sentence_transformer_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
 def main(model, dataset, size, test_subset, edges, batch_size=64, add_edges=4, loss_fct="cosine_mse"):
+    base_dir = "temp_storage"
+    subdirs = ["saved_gnns", "saved_graphs"]
+    os.makedirs(base_dir, exist_ok=True)
+    os.makedirs("outputs", exist_ok=True)
+    for sd in subdirs:
+        os.makedirs(os.path.join(base_dir, sd), exist_ok=True)
     #=========
     # Load in the model, and it's characteristics
     #=========
@@ -500,7 +506,7 @@ if __name__ == "__main__":
     parser.add_argument("model", type=str, default="graphsage", help='Choose the script to use')
     parser.add_argument("dataset", type=str, default="wands", help='Choose the dataset to use: "esci" or "wands"')
     parser.add_argument("size", type=int, default=10000, help="Amount of judgments")
-    parser.add_argument("test_subset", type=int, default=0, help="Choose the subset, and it's size. {0,1,...}")
+    parser.add_argument("test_subset", type=int, default=0, help="Choose the subset, and it's size. {0,1,..,8}")
     parser.add_argument("--edges", type=str, default="gc_random", help="Choose the edge creation for the Product Graph")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
     parser.add_argument("--add_edges", type=int, default=4, help="Choose the minimum of edges per node")
