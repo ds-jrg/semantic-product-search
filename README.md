@@ -34,7 +34,7 @@ data/wands-data/product.csv
 data/wands-data/query.csv
 data/wands-data/label.csv
 ```
-For using the models ``gtpyg-gtconv.py`` it is also required to clone [gt-pyg](https://github.com/pgniewko/gt-pyg). 
+For using the models ``gtpyg-gtconv.py`` it is also required to clone [gt-pyg](https://github.com/pgniewko/gt-pyg). Move it to the working directory and rename it to ``gtpyg``. 
 
 # Usage
 For running one model, use the ``Experiment.py`` script:
@@ -45,7 +45,7 @@ With the following arguments:
 * ``model``: specifies the model to use from ``/scripts``
 * ``dataset``: decides which dataset to use, either esci or wands
 * ``size``: specifies the size of judgments, either in {10000, 50000, 100000}
-* ``test_subset``: which data subset to use: between 0 to 9
+* ``test_subset``: which data subset to use: between 0 to 8
 * ``--edges gc_random``: specifies which edge rule to use
 * ``--batch_size 32``: specifies the batch size
 * ``--add_edges 16``: amount of minimal edges per node (if enough nodes with shared attribute and value)
