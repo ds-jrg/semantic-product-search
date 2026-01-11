@@ -8,7 +8,7 @@ from Experiment import main as test_gnn
 def start_one_test(modules, dataset, size, edges, path_to_save, batch_size=64, add_edges=4, loss_fct="cosine_mse"):
     """ Starts three runs for dataset, size and then averages the results, stores them in file path_to_save
     """
-    size_to_idx = {"10000":[0,1,2], "50000":[3,4,5], "100000":[6,7,8]}
+    size_to_idx = {10000:[0,1,2], 50000:[3,4,5], 100000:[6,7,8]}
     for module in modules:
         score = []
         print(module)
