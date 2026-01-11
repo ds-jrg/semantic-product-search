@@ -15,7 +15,7 @@ Parameters:
     (Opt) loss_fct: can specify a different loss function (default = "cosine_mse")
 """
 
-modules = ['transformerconv.py','gtpyg_gtconv.py']
+modules = ['transformerconv','gtpyg_gtconv']
 dataset = "wands"
 size = 10000
 edges = "gc_random"
